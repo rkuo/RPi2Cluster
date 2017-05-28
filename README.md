@@ -1,1 +1,1 @@
-# RPi2Cluster
+See `setup docker cluster on rpi.md`

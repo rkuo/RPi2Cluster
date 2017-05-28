@@ -1,0 +1,7 @@
+hostname: rpi-s3
+wifi:
+  interfaces:
+    wlan0:
+      ssid: "2WIRE961"
+      password: "9116025166"
+
