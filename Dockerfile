@@ -1,9 +1,4 @@
-FROM resin/rpi-raspbian:latest  
-ENTRYPOINT []
+FROM gpio-base:latest  
+ADD ./app.py ./app.py
 
-RUN apt-get -q update && \  
-    apt-get -qy install \
-        python python-pip \
-        python-dev python-pip gcc make  
-
-RUN pip install rpi.gpio
+CMD ["python", "app.py"]  

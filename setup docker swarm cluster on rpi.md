@@ -1,8 +1,8 @@
 
 
-[toc]
-
 # RPi Cluster - Swarm
+
+[toc]
 
 ## Materials
 * 1 [USB power hub](http://elinux.org/RPi_Powered_USB_Hubs#USB_hub_power_circuitry_tests) with 4 ports 2amp per port minimun.
@@ -40,7 +40,7 @@ Executing /usr/sbin/update-rc.d docker enable
 pi@rpi-01:~ $
 ```
 
-* this gives use rpi with 
+* this gives us a rpi with 
 	* image 2017-04-10-raspbian-jessie.img
 	* dynamic wifi (consider to move to static IP later)
 	* docker
@@ -74,7 +74,8 @@ $ hostnamectl
       Architecture: arm
 HypriotOS/armv7: pirate@rpi-m1 in ~
 ```
-We need to install [mDNS service](https://www.howtogeek.com/167190/how-and-why-to-assign-the-.local-domain-to-your-raspberry-pi/) for example, `avahi-daemon`. There are other ways.
+
+We need to install [mDNS service](https://www.howtogeek.com/167190/how-and-why-to-assign-the-.local-domain-to-your-raspberry-pi/) for example, `avahi-daemon`. 
 
 ### Use the utility program `flash` to download image and copy to SD
 
@@ -154,7 +155,7 @@ $ swarm  <<--- this is wrong command, use `docker swarm init`
 HypriotOS/armv7: pirate@rpi-m1 in ~
 ```
 
-There is bug for ping,
+There is bug for ping.
 ```
 $ ping rpi-s1
 ping: icmp open socket: Operation not permitted
@@ -208,6 +209,7 @@ The key's randomart image is:
 |  .o..           |
 +-----------------+
 ```
+
 ### Copy SSH Key of Master Node (rpi-m1) to Workers (rpi-s1, rpi-s2, rpi-s3) 
 
 ```
@@ -797,12 +799,20 @@ Successfully tagged gpio-base:latest
 #### Wiring
 
 wire sensor or actuator to breadboard.
+There are positive (longer leg) and negative connectors for LED.
+
+![ledblink schenatic](https://www.evernote.com/l/AS6FIUaUFhNEZJ3M0kMEo1PYitDT6RH1YYMB/image.png)
+
+![]()
+
 
 ##### Reference 
 [compare gpio 26 vs 40](http://www.raspberrypi-spy.co.uk/2012/06/simple-guide-to-the-rpi-gpio-header-and-pins/).   
 [The comprehensive GPIO Pinout guide for the Raspberry Pi](https://pinout.xyz/) with good interactive description.
 
-![gpio-40 pins](https://pihw.files.wordpress.com/2016/01/rpigpiopinout.png?w=614)  
+![gpio-40 pins](https://www.element14.com/community/servlet/JiveServlet/previewBody/73950-102-11-339300/pi3_gpio.png)  
+
+create the app.py
 
 ```   
 import RPi.GPIO as GPIO  
@@ -818,8 +828,105 @@ while(True):
     time.sleep(1)
 ```   
 
+create an application container by adding `app.py` to `gpio-base` container in new Dockerfile
 
+```
+➜  rpi2cluster git:(master) ✗ docker build -t ledblink .
+Sending build context to Docker daemon  2.194MB
+Step 1/3 : FROM gpio-base:latest
+ ---> bf8e92212635
+Step 2/3 : ADD ./app.py ./app.py
+ ---> 18c6bd9e903e
+Removing intermediate container 09344bdc7f71
+Step 3/3 : CMD python app.py
+ ---> Running in dc7ca78b382b
+ ---> 5fc95fa71c0c
+Removing intermediate container dc7ca78b382b
+Successfully built 5fc95fa71c0c
+Successfully tagged ledblink:latest
+```
+push to repo
 
+```
+➜  rpi2cluster git:(master) ✗ docker push rkuo/ledblink:latest
+The push refers to a repository [docker.io/rkuo/ledblink]
+An image does not exist locally with the tag: rkuo/ledblink <<--- failed
+➜  rpi2cluster git:(master) ✗ docker images
+REPOSITORY                    TAG                 IMAGE ID            CREATED             SIZE
+ledblink                      latest              5fc95fa71c0c        2 minutes ago       250MB
+gpio-base                     latest              bf8e92212635        19 hours ago        250MB
+node                          arm                 2cdcd91d8ec3        27 hours ago        316MB
+rkuo/curl_docker              latest              1b8b178243d2        29 hours ago        138MB
+curl_docker                   latest              8c797cc1dedc        31 hours ago        138MB
+rkuo/curl_docker              first               8c797cc1dedc        31 hours ago        138MB
+<none>                        <none>              e9a68d8061f7        32 hours ago        138MB
+resin/rpi-raspbian            latest              aa1d2f443aa9        3 days ago          122MB
+portainer/portainer           latest              89883cee365b        7 weeks ago         9.96MB
+kitematic/hello-world-nginx   latest              03b4557ad7b9        23 months ago       7.91MB
+```
+failed, need to add author id, re-build
+
+```
+➜  rpi2cluster git:(master) ✗ docker build -t rkuo/ledblink .
+Sending build context to Docker daemon  2.194MB
+Step 1/3 : FROM gpio-base:latest
+... snip ...
+Successfully built 5fc95fa71c0c
+Successfully tagged rkuo/ledblink:latest
+```
+
+push it again, works.
+
+```
+➜  rpi2cluster git:(master) ✗ docker push rkuo/ledblink:latest
+The push refers to a repository [docker.io/rkuo/ledblink]
+a42aaf857f26: Pushed
+171ea87681aa: Pushed
+6609ac83af92: Pushed
+87e4cab2b6c9: Mounted from rkuo/curl_docker
+13e86b166052: Mounted from rkuo/curl_docker
+91803b35897b: Mounted from rkuo/curl_docker
+0a4054d140f4: Mounted from rkuo/curl_docker
+bab354dffa8f: Mounted from rkuo/curl_docker
+eddeb391e435: Mounted from rkuo/curl_docker
+46ef2f4c0b3b: Mounted from rkuo/curl_docker
+2c7c0f4569cb: Mounted from rkuo/curl_docker
+latest: digest: sha256:e6b01ae4af6ab0d1820ba037c0994896616af567c74357bd6c8359aeeadd3d12 size: 2607
+➜  rpi2cluster git:(master) ✗
+```
+
+test run `sudo docker run -ti --privileged rkuo/ledblink` on a rpi with wired breadboard.
+
+???
+
+join swarm, offer service.
+```
+pi@raspberrypi:~ $ sudo docker swarm join  --token SWMTKN-1-0obaaqul2si12iu0mxlxwmoa0ig1frdsnjtyalpxnk7clp434e-9l9sx9idajcloasfdw4a01g2y      192.168.1.88:2377
+This node joined a swarm as a worker.
+pi@raspberrypi:~ $
+```
+check it in master node
+
+```
+HypriotOS/armv7: pirate@rpi-m1 in ~
+$ docker node ls    <<--- before
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+g4vy8ewdl9ci8ct0lheqpxjbg *  rpi-m1    Ready   Active        Leader
+nduvj0l8h30jl5kgq53bdwjzh    rpi-s3    Down    Active
+qa44ke9lu72ixaw2b57h4y4y8    rpi-s2    Ready   Active
+ywf90mm103qd28r6a0upldtu1    rpi-s1    Ready   Active
+HypriotOS/armv7: pirate@rpi-m1 in ~
+$ docker node ls    <<--- after
+ID                           HOSTNAME     STATUS  AVAILABILITY  MANAGER STATUS
+g4vy8ewdl9ci8ct0lheqpxjbg *  rpi-m1       Ready   Active        Leader
+nduvj0l8h30jl5kgq53bdwjzh    rpi-s3       Down    Active
+qa44ke9lu72ixaw2b57h4y4y8    rpi-s2       Ready   Active
+ycwwt7pgr06kene0heubrqtuv    raspberrypi  Down    Active
+ywf90mm103qd28r6a0upldtu1    rpi-s1       Ready   Active
+HypriotOS/armv7: pirate@rpi-m1 in ~
+$
+```
+:-) :-) done
 
 ## Summary 
 put architecture diagram here.????
